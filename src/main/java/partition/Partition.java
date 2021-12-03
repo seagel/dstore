@@ -18,7 +18,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import static java.lang.Math.abs;
 
 
-public class Partition extends Thread {
+public class Partition extends Thread { //partition analogous to thread
 
     int id;
 
@@ -36,7 +36,12 @@ public class Partition extends Thread {
         processingQueue = new ArrayBlockingQueue<>(1000);
         offset = 0;
     }
-
+    
+    public Range getRange()
+    {
+    	return this.range;
+    }
+    
     public void pushToProduceQueue() {
         int x =100;
         Transaction curr = generateTransaction();

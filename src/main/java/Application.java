@@ -2,7 +2,7 @@ import partition.Initializer;
 import partition.TxnProcessor;
 import storage.LockManager;
 import storage.Store;
-import zookeeper.Executor;
+import zookeeper.Executor;//package Zookeeper.executor
 
 public class Application {
     public static void main(String[] args){

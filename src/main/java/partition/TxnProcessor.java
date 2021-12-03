@@ -17,7 +17,7 @@ public class TxnProcessor {
     Store store;
     public TxnProcessor(int partitionId, Store store, LockManager lockManager, Range range){
         consumer  = new ArrayBlockingQueue<>(1000);
-        new Thread(this::process).start();
+        new Thread(this::process).start(); //why new thread here ?
         this.store = store;
         this.lockManager = lockManager;
         this.partitionId = partitionId;
