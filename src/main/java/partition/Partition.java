@@ -20,11 +20,12 @@ import static java.lang.Math.abs;
 
 public class Partition extends Thread {
 
-    int id;
-
+    int id,itr;
+    
     Range range;
     Initializer initializer;
     ArrayBlockingQueue<Transaction> processingQueue;
+    Range read_set;
 
     TxnProcessor txnProcessor;
     long offset;
@@ -85,8 +86,13 @@ public class Partition extends Thread {
         List<String> children;
 //        while (true) {
             try {
+            	this.itr = 0;
                 children = zooKeeper.getChildren("/sequencer", false);
-                children.stream().limit(10).forEach(x -> {
+                this.read_set.start = this.read_set.end+1;
+                children.subList(this.read_set.end+1, this.read_set.end+10).forEach(x -> {
+                	this.itr++;
+                	this.read_set.end = this.itr;
+                //children.stream().limit(10).forEach(x -> {
                     try {
                         Transaction curr = (Transaction) getObject(zooKeeper.getData("/sequencer/"+x, false, zooKeeper.exists("/sequencer/"+x, false)));
 //                        curr.print();
