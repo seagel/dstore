@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
 
-public class Partition extends Thread {
+public class Partition extends Thread { //partition analogous to thread
 
     int id;
     Range range;
@@ -32,7 +32,12 @@ public class Partition extends Thread {
         processingQueue = new ArrayBlockingQueue<>(1000);
         offset = 0;
     }
-
+    
+    public Range getRange()
+    {
+    	return this.range;
+    }
+    
     public void pushToProduceQueue() {
         int x =100;
         Transaction curr = generateTransaction();
