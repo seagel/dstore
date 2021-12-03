@@ -30,7 +30,7 @@ public class Initializer {
         int noOfRowsAssigned =0 ;
         int no = 0;
         while(noOfRowsAssigned < store.getSize()){
-            int start = noOfRowsAssigned;
+            int start = noOfRowsAssigned;//initialIndex and finalIndex to the array
             int end = start + slice-1;
             addNewPartition(no,new Range(start,end));
             noOfRowsAssigned = end + 1;
