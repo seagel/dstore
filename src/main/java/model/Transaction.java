@@ -21,9 +21,6 @@ public class Transaction implements Serializable {
     Set<Integer> readSet;
     Set<Integer> writeSet;
     boolean isMultiPartition;
-
-
-
     int originatorPartition;
 
     public Transaction(Set<Integer> readSet,Set<Integer> writeSet,boolean isMultiPartition){
@@ -31,7 +28,11 @@ public class Transaction implements Serializable {
         this.readSet = readSet;
         this.writeSet = writeSet;
         this.isMultiPartition = isMultiPartition;
+        this.originatorPartition = new Random().nextInt(10);
     }
+
+    /// Read only transaction - SP/ MP
+    /// Read-Write and read only Transaction - S
 
 
     //getter & setter methods
@@ -98,6 +99,11 @@ public class Transaction implements Serializable {
 //        byte[] writeset
 //        inputArchive.endRecord(s);
 //    }
+
+
+    public int getOriginatorPartition() {
+        return originatorPartition;
+    }
 }
 
 

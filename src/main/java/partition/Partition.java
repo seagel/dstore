@@ -11,13 +11,17 @@ import java.io.*;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+
+import static java.lang.Math.abs;
 
 
 public class Partition extends Thread {
 
     int id;
+
     Range range;
     Initializer initializer;
     ArrayBlockingQueue<Transaction> processingQueue;
@@ -38,6 +42,7 @@ public class Partition extends Thread {
         Transaction curr = generateTransaction();
         curr.setOriginatorPartition(id);
 //        while (x > 0) {
+        if(id < 3)
             processingQueue.add(curr);
 //            x--;
 //        }
@@ -45,15 +50,16 @@ public class Partition extends Thread {
 
     private Transaction generateTransaction(){
         Set<Integer> readSet = new HashSet<>();
-        readSet.add(1);
-//        readSet.add(2);
+        Random random = new Random();
+//        readSet.add(abs(random.nextInt()) % 5);
+//        readSet.add(abs(random.nextInt()) % 5);
 //        readSet.add(3);
 //        readSet.add(4);
 //        readSet.add(5);
         Set<Integer> writeSet = new HashSet<>();
 //        w.add(1);
-//        readSet.add(2);
-//        readSet.add(3);
+        writeSet.add(abs(random.nextInt() % 1000000));
+//        writeSet.add(abs(random.nextInt() % 5));
 //        readSet.add(4);
 //        readSet.add(5);
         return new Transaction(readSet,writeSet,true);
@@ -77,7 +83,7 @@ public class Partition extends Thread {
     private void startReadingFromLog() {
         ZooKeeper zooKeeper = initializer.executor.getZooKeeper();
         List<String> children;
-        while (true) {
+//        while (true) {
             try {
                 children = zooKeeper.getChildren("/sequencer", false);
                 children.stream().limit(10).forEach(x -> {
@@ -85,25 +91,23 @@ public class Partition extends Thread {
                         Transaction curr = (Transaction) getObject(zooKeeper.getData("/sequencer/"+x, false, zooKeeper.exists("/sequencer/"+x, false)));
 //                        curr.print();
                         txnProcessor.processTransaction(curr);
+
                     } catch (KeeperException | InterruptedException | IOException | ClassNotFoundException e) {
                         e.printStackTrace();
                     }
-                    System.out.println("Partition id : " + this.getId() + " ...." + x);
+//                    System.out.println("Partition id : " + this.getId() + " ...." + x);
                 });//printing the order of the transactions in every thread
             } catch (KeeperException | InterruptedException e) {
                 e.printStackTrace();
             }
-            break;
-        }
-
-
+//            break;
+//        }
     }
 
     private void startWritingToLog() {
         ZooKeeper zooKeeper = initializer.executor.getZooKeeper();
         Transaction curr;
         while (true) {
-            ByteArrayOutputStream baos=new ByteArrayOutputStream();
             try {
                 curr = processingQueue.take();
                 zooKeeper.create("/sequencer/T",getByteArray(curr) , ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
@@ -131,6 +135,10 @@ public class Partition extends Thread {
         ByteArrayInputStream bis = new ByteArrayInputStream(byteArr);
         ObjectInput in = new ObjectInputStream(bis);
         return in.readObject();
+    }
+
+    public Range getRange() {
+        return range;
     }
 
 

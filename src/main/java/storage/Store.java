@@ -6,9 +6,17 @@ import java.util.Collections;
 public class Store {
     ArrayList<Integer> store;
     public Store(){
-        store = new ArrayList<>(Collections.nCopies(10000, -1));
+        store = new ArrayList<>(Collections.nCopies(1000000, 0));
     }
     public int getSize(){
         return store.size();
+    }
+    public void write(int key,int value){
+        store.set(key,value);
+    }
+    public int read(int key){
+        if(key > store.size())
+            return -1;
+        return store.get(key);
     }
 }

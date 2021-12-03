@@ -13,7 +13,7 @@ public class Application {
         initializer.initializePartitions(noOfPartitions,store);
         LockManager lockManager = new LockManager();
         initializer.getShardMap().forEach((key, value) -> {
-            TxnProcessor processor = new TxnProcessor(store,lockManager);
+            TxnProcessor processor = new TxnProcessor(key,store,lockManager,value.getRange());
             value.setTxnProcessor(processor);
         });
         initializer.getShardMap().forEach((key, value) -> value.pushToProduceQueue());

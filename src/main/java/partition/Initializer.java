@@ -12,7 +12,6 @@ import java.util.Map;
 
 public class Initializer {
 
-
     Map<Integer,Partition> shardMap;
     Executor executor;
     public Initializer(Executor zk){
