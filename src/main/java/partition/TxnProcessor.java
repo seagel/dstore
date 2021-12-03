@@ -14,7 +14,7 @@ public class TxnProcessor {
     Store store;
     public TxnProcessor(Store store, LockManager lockManager){
         consumer  = new ArrayBlockingQueue<>(1000);
-        new Thread(this::process).start();
+        new Thread(this::process).start(); //why new thread here ?
         this.store = store;
         this.lockManager = lockManager;
         isStopped = false;
