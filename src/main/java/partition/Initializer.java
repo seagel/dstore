@@ -8,22 +8,25 @@ import zookeeper.Executor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+//Initializer = {shardMap, executor}
 
 public class Initializer {
 
 
     Map<Integer,Partition> shardMap;
     Executor executor;
-    public Initializer(Executor zk){
+    
+    public Initializer(Executor zk){//setter method
         this.executor = zk;
         shardMap = new HashMap<>();
     }
+    
     public Executor getExecutor() {
         return executor;
     }
-    public void initializePartitions(int noOfPartitions, Store store){
-        int slice = store.getSize() / noOfPartitions;
+    
+    public void initializePartitions(int noOfPartitions, Store store){ //init function 
+        int slice = store.getSize() / noOfPartitions; //splitting array into equal number of parts
         int noOfRowsAssigned =0 ;
         int no = 0;
         while(noOfRowsAssigned < store.getSize()){
@@ -34,6 +37,7 @@ public class Initializer {
             no++;
         }
     }
+    
     public Map<Integer, Partition> getShardMap() {
         return shardMap;
     }
