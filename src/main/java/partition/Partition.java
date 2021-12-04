@@ -63,7 +63,7 @@ public class Partition extends Thread { //partition analogous to thread
 //        readSet.add(5);
         Set<Integer> writeSet = new HashSet<>();
 //        w.add(1);
-        writeSet.add(abs(random.nextInt() % 1000000));
+        writeSet.add(2);
 //        writeSet.add(abs(random.nextInt() % 5));
 //        readSet.add(4);
 //        readSet.add(5);

@@ -107,7 +107,7 @@ public class LockManager {
 
         if(!isShared && lockRequests.getFirst().txn != txn){
             txn_waits.merge(txn,-1,Integer::sum);
-            if(txn_waits.get(lockRequests.getFirst().txn) == 0)
+            if(txn_waits.get(lockRequests.getFirst().txn)!=null && txn_waits.get(lockRequests.getFirst().txn) == 0)
                 ready_txns.add(lockRequests.getFirst().txn);
         }else{
             while(it.hasNext()){
