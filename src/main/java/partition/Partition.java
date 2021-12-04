@@ -142,9 +142,5 @@ public class Partition extends Thread { //partition analogous to thread
         return in.readObject();
     }
 
-    public Range getRange() {
-        return range;
-    }
-
 
 }
