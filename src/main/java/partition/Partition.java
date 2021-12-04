@@ -93,7 +93,7 @@ public class Partition extends Thread { //partition analogous to thread
     private void startReadingFromLog() {
         ZooKeeper zooKeeper = initializer.executor.getZooKeeper();
         List<String> children;
-//        while (true) {
+        while (true) {
             try {
             	this.itr = 0;
                 children = zooKeeper.getChildren("/sequencer", false);
@@ -107,29 +107,31 @@ public class Partition extends Thread { //partition analogous to thread
                 {
                 	e_index = children.size();
                 }
-                
-                children.subList(s_index, e_index).forEach(x -> {
-                	
-                	this.itr++;
-                	this.read_set.end = this.read_set.start+this.itr;
-                	System.out.println("index read = "+this.read_set.end);
-                	
-                //children.stream().limit(10).forEach(x -> {
-                    try {
-                        Transaction curr = (Transaction) getObject(zooKeeper.getData("/sequencer/"+x, false, zooKeeper.exists("/sequencer/"+x, false)));
-//                        curr.print();
-                        txnProcessor.processTransaction(curr);
+                if(s_index <= e_index) {
+                    children.subList(s_index, e_index).forEach(x -> {
 
-                    } catch (KeeperException | InterruptedException | IOException | ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
+                        this.itr++;
+                        this.read_set.end = this.read_set.start + this.itr;
+                        System.out.println("index read = " + this.read_set.end);
+
+                        //children.stream().limit(10).forEach(x -> {
+                        try {
+                            Transaction curr = (Transaction) getObject(zooKeeper.getData("/sequencer/" + x, false, zooKeeper.exists("/sequencer/" + x, false)));
+//                        curr.print();
+                            txnProcessor.processTransaction(curr);
+
+                        } catch (KeeperException | InterruptedException | IOException | ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
 //                    System.out.println("Partition id : " + this.getId() + " ...." + x);
-                });//printing the order of the transactions in every thread
+                    });
+                }
+                //printing the order of the transactions in every thread
             } catch (KeeperException | InterruptedException e) {
                 e.printStackTrace();
             }
 //            break;
-//        }
+        }
     }
 
     private void startWritingToLog() {
