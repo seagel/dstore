@@ -7,6 +7,8 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
+import constants.ConfigurableConstants;
+
 import java.io.*;
 
 import java.util.HashSet;
@@ -20,11 +22,12 @@ import static java.lang.Math.abs;
 
 public class Partition extends Thread { //partition analogous to thread
 
-    int id;
-
+    int id,itr;
+    
     Range range;
     Initializer initializer;
     ArrayBlockingQueue<Transaction> processingQueue;
+    Range read_set;
 
     TxnProcessor txnProcessor;
     long offset;
@@ -35,6 +38,8 @@ public class Partition extends Thread { //partition analogous to thread
         this.initializer = initializer;
         processingQueue = new ArrayBlockingQueue<>(1000);
         offset = 0;
+        Range r = new Range(0,0);
+        this.read_set = r;
     }
     
     public Range getRange()
@@ -90,8 +95,26 @@ public class Partition extends Thread { //partition analogous to thread
         List<String> children;
 //        while (true) {
             try {
+            	this.itr = 0;
                 children = zooKeeper.getChildren("/sequencer", false);
-                children.stream().limit(10).forEach(x -> {
+                this.read_set.start = this.read_set.end+1;
+                int s_index = this.read_set.end+1, e_index ;
+                if(children.size() >= this.read_set.start + ConfigurableConstants.ZOOKEEPER_BATCH_READ_SIZE)
+                {
+                	e_index = this.read_set.start + ConfigurableConstants.ZOOKEEPER_BATCH_READ_SIZE;
+                }
+                else
+                {
+                	e_index = children.size();
+                }
+                
+                children.subList(s_index, e_index).forEach(x -> {
+                	
+                	this.itr++;
+                	this.read_set.end = this.read_set.start+this.itr;
+                	System.out.println("index read = "+this.read_set.end);
+                	
+                //children.stream().limit(10).forEach(x -> {
                     try {
                         Transaction curr = (Transaction) getObject(zooKeeper.getData("/sequencer/"+x, false, zooKeeper.exists("/sequencer/"+x, false)));
 //                        curr.print();
