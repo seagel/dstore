@@ -57,6 +57,11 @@ public class Partition extends Thread { //partition analogous to thread
 //            x--;
 //        }
     }
+    
+    public void PushToTransactionQueue(Transaction t)
+    {
+    	processingQueue.add(t);
+    }
 
     private Transaction generateTransaction(){
         Set<Integer> readSet = new HashSet<>();
