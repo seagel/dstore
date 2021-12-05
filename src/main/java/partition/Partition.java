@@ -10,7 +10,7 @@ import org.apache.zookeeper.ZooKeeper;
 import constants.ConfigurableConstants;
 
 import java.io.*;
-
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -36,7 +36,7 @@ public class Partition extends Thread { //partition analogous to thread
         this.id = id;
         this.range = range;
         this.initializer = initializer;
-        processingQueue = new ArrayBlockingQueue<>(1000);
+        processingQueue = new ArrayBlockingQueue<>(ConfigurableConstants.PROCESSING_QUEUE_SIZE);
         offset = 0;
         Range r = new Range(0,0);
         this.read_set = r;
@@ -56,6 +56,10 @@ public class Partition extends Thread { //partition analogous to thread
             processingQueue.add(curr);
 //            x--;
 //        }
+    }
+    
+    public void addToProduceQueue(Collection<Transaction> c) {
+       processingQueue.addAll(c);
     }
 
     private Transaction generateTransaction(){
