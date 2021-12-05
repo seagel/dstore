@@ -21,7 +21,7 @@ public class Test1 {
     @Test
     public void test1()
     {
-    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(30,1));
+    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(30,1,0));
         partition.addToProduceQueue(collection);
     }
     
@@ -29,35 +29,35 @@ public class Test1 {
     @Test
     public void test2()
     {
-    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(30,0));
+    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(30,0,0));
         partition.addToProduceQueue(collection);
     }
     
     @Test
     public void test3()
     {
-    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(5,1));
+    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(5,1,0));
         partition.addToProduceQueue(collection);
     }
 	
     @Test
     public void test4()
     {
-    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(5,0));
+    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(5,0,1));
         partition.addToProduceQueue(collection);
     }
     
     @Test
     public void test5()
     {
-    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(100,1));
+    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(100,1,1));
         partition.addToProduceQueue(collection);
     }
     
     @Test
     public void test6()
     {
-    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(100,0));
+    	Collection<Transaction> collection = new ArrayList<Transaction>(generateTransactions.listoftxns(100,0,1));
         partition.addToProduceQueue(collection);
     }
 

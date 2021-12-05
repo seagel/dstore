@@ -11,47 +11,40 @@ import model.Transaction;
 public class GenerateTransactions {
 
 	
-	
-	public Transaction genTrans(int length, int contention)
+	/**
+	 * 0 - Read-only mode
+	 * 1 - Read-Write mode
+	 * @param length
+	 * @param contention
+	 * @param mode
+	 * @return
+	 */
+	public Transaction genTrans(int length, float contention, int mode)
 	{
 		Set<Integer> readset = new HashSet<Integer>();
 		Set<Integer> writeset = new HashSet<Integer>();
 		
 		Random random = new Random();
-		if(contention == 0)
+		for(int i=0; i<length; i++)
 		{
-			for(int i=0; i<length; i++){
-				int read = (random.nextInt()) % ConfigurableConstants.DATABASE_SIZE;
-				readset.add(read);
-			}
-
-			for(int i=0; i<=length; i++){
-				int write = (random.nextInt()) % ConfigurableConstants.DATABASE_SIZE;
+			int read = (int) ((random.nextInt()) % (100 + (ConfigurableConstants.DATABASE_SIZE-100)*(1-contention)));
+			readset.add(read);
+		}
+		if(mode == 1)
+			for(int i=0; i<=length; i++)
+			{
+				int write = (int) ((random.nextInt()) % (100 + (ConfigurableConstants.DATABASE_SIZE-100)*(1-contention)));
 				writeset.add(write);
 			}
-			
-
-		}
-		else if(contention == 1)
-		{
-			for(int i =0; i<length; i++){
-				int read = (random.nextInt()) % 100;
-				readset.add(read);
-			}
-			for(int i=0; i<length; i++){
-				int write = (random.nextInt()) % 100;
-				writeset.add(write);
-			}
-		}
 		return new Transaction(readset,writeset,true);
 	}
 
-	public List<Transaction> listoftxns(int length, int contention)
+	public List<Transaction> listoftxns(int length, float contention, int mode)
 	{
 		List<Transaction> transactionList = new ArrayList<Transaction>();
 		for(int i=0; i<=ConfigurableConstants.PROCESSING_QUEUE_SIZE; i++)
 		{
-			transactionList.add(genTrans(length,contention));
+			transactionList.add(genTrans(length,contention,mode));
 		}
 		return transactionList;
 	}
