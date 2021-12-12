@@ -4,10 +4,11 @@ import model.Transaction;
 import storage.LockManager;
 import storage.Store;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+
 
 public class TxnProcessor {
     ArrayBlockingQueue<Transaction> consumer;
@@ -16,7 +17,6 @@ public class TxnProcessor {
     int partitionId;
     Range range;
     Store store;
-    AtomicInteger count ;
 
     public TxnProcessor(int partitionId, Store store, LockManager lockManager, Range range){
         consumer  = new ArrayBlockingQueue<>(1000);
@@ -27,7 +27,6 @@ public class TxnProcessor {
         isStopped = false;
         this.range = range;
         new Thread(this::executeProcessedTransaction).start();
-        count = new AtomicInteger(0);
 
     }
 
@@ -35,34 +34,30 @@ public class TxnProcessor {
         while(!isStopped){
             try {
                 Transaction curr = consumer.take();
-                boolean isReady = true;
-                int requestForLocksMade = 0;
                 if (!curr.isMultiPartition() && curr.getOriginatorPartition() != partitionId) {
                     continue;
                 }
-
+                System.out.println("Transaction starting " + curr.getTransactionId() + "Partition : " + partitionId) ;
+                lockManager.initializeLockAcquired(curr);
                 if(!curr.getReadSet().isEmpty()){
                     for(int key :curr.getReadSet()){
                         if(doesItBelongToMe(key) ){
-                            requestForLocksMade++;
-                            isReady = isReady & lockManager.readLock(curr,key,partitionId);
+                            lockManager.readLock(curr,key,partitionId);
                         }
                     }
                 }
                 if(!curr.getWriteSet().isEmpty()){
                     for(int key : curr.getWriteSet()){
                         if(doesItBelongToMe(key) ){
-                            requestForLocksMade++;
-                            isReady = isReady & lockManager.writeLock(curr,key,partitionId);
+                            lockManager.writeLock(curr,key,partitionId);
                         }
                     }
                 }
-                if(isReady && requestForLocksMade > 0 ){
-//                    System.out.println("Adding Transaction :" + curr.getTransactionId() + "lock request Made" + requestForLocksMade + "Partition Id : "  + partitionId) ;
-                    count.getAndIncrement();
-                    lockManager.addToReadyQueue(curr);
-                    curr.markCompleted(System.nanoTime());
-                }
+//                if(lockManager.{
+//                    System.out.println(" Direct Ready : Adding Transaction :" + curr.getTransactionId() + "lock request Made" + requestForLocksMade + "Partition Id : "  + partitionId) ;
+//                    lockManager.addToReadyQueue(curr);
+//                    curr.markCompleted(System.nanoTime());
+//                }
 
             } catch (InterruptedException e) {
 //                e.printStackTrace();
@@ -97,8 +92,9 @@ public class TxnProcessor {
                 }
                 if (!curr.getReadSet().isEmpty()) {
                     for (int key : curr.getReadSet()) {
-                        if(doesItBelongToMe(key))
+                        if(doesItBelongToMe(key) ){
                             lockManager.release(curr, key,partitionId);
+                        }
                     }
                 }
                 if (!curr.getWriteSet().isEmpty()) {
@@ -108,8 +104,13 @@ public class TxnProcessor {
                     }
                 }
                 curr.markCompleted(System.nanoTime());
-
-                System.out.println("Transaction executed successfully" + curr.getTransactionId());
+//                count.getAndIncrement();
+                System.out.println("Transaction executed : " + curr.getTransactionId() + "Partition :" + partitionId);
+//                if(count.get() == 100){
+//                    System.out.println("Execution Completed at : " + curr.getCompletionTime());
+//                }
+//                if("T0000009999".equals(curr.getTransactionId())){
+//                }
             }
         }
     }

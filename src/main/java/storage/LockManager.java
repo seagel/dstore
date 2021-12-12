@@ -1,6 +1,8 @@
 package storage;
 
 import model.Transaction;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.zookeeper.txn.Txn;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -21,27 +23,57 @@ class LockRequest{
         this.partitionId = partitionId;
     }
 }
+class Tracker{
+    int needed,acquired;
+    Transaction txn;
+    public Tracker(int needed,Transaction txn){
+        this.needed = needed;
+        this.acquired = 0;
+        this.txn = txn;
+    }
+    public void incrementAcquired(){
+        this.acquired++;
+    }
+    public boolean isReady(){
+        return this.acquired == this.needed;
+    }
+}
 public class LockManager {
     private final ConcurrentHashMap<Integer, Deque<LockRequest>> lockTable ;
-    private final Map<String,Integer> txn_waits;
-
-
-
+    private final Map<String, Integer> txnWaits;
+    private final Map<String, Tracker> locksAcquired;
     Map<Integer,ArrayBlockingQueue<Transaction>> ready_txns;
 
     public LockManager(Map<Integer,ArrayBlockingQueue<Transaction>> ready_txns){
         lockTable = new ConcurrentHashMap<>();
-        txn_waits = new ConcurrentHashMap<>();
+        txnWaits = new ConcurrentHashMap<>();
         this.ready_txns = ready_txns;
+        locksAcquired = new ConcurrentHashMap<>();
+        new Thread(this::checkForReadyTransaction).start();
+
     }
+
+    private void checkForReadyTransaction() {
+        ArrayList<String> doneTransactions = new ArrayList<>();
+        while(true){
+            locksAcquired.forEach((key,value) -> {
+//                System.out.println("Readyness Transactions : " + key + " " + value.acquired + " " + value.needed);
+                if(value.isReady()){
+                    addToReadyQueue(value.txn);
+                    doneTransactions.add(key);
+                }
+            });
+            doneTransactions.forEach(locksAcquired::remove);
+            doneTransactions.clear();
+        }
+    }
+
     synchronized public boolean writeLock(Transaction txn,int key,int partitionId){
         boolean isLockGranted = false;
         Deque<LockRequest> lockRequests = lockTable.get(key);
-        if(lockRequests == null || lockRequests.isEmpty()){
+        if(lockRequests == null || lockRequests.isEmpty() ){
             isLockGranted = true;
-        }else{
-            txn_waits.putIfAbsent(txn.getTransactionId(), 0);
-            txn_waits.merge(txn.getTransactionId(), 1, Integer::sum);
+            addLockGranted(txn.getTransactionId());
         }
 
         LockRequest lockRequest = new LockRequest(txn,LockMode.EXCLUSIVE,partitionId);
@@ -57,6 +89,13 @@ public class LockManager {
 
         return isLockGranted;
     }
+    public synchronized void addLockGranted(String id){
+        locksAcquired.get(id).incrementAcquired();
+        System.out.println("Transaction :" + id + "...." + locksAcquired.get(id).acquired + "....." +locksAcquired.get(id).needed);
+    }
+    public synchronized void initializeLockAcquired(Transaction transaction){
+        locksAcquired.putIfAbsent(transaction.getTransactionId(),new Tracker(transaction.getReadSet().size() + transaction.getWriteSet().size(),transaction));
+    }
 
     synchronized public boolean readLock(Transaction txn,int key,int partitionId){
         boolean isLockGranted = false;
@@ -64,31 +103,28 @@ public class LockManager {
         if(lockRequests == null || lockRequests.isEmpty()){
             isLockGranted = true;
         }
-        synchronized (this){
-            LockRequest lockRequest = new LockRequest(txn, LockMode.SHARED,partitionId);
-            Deque<LockRequest> temp = new ConcurrentLinkedDeque<>();
-            if (lockRequests == null) {
-                temp.addLast(lockRequest);
-                lockTable.put(key, temp);
-            } else {
-                lockRequests.add(lockRequest);
-            }
+        LockRequest lockRequest = new LockRequest(txn, LockMode.SHARED,partitionId);
+        Deque<LockRequest> temp = new ConcurrentLinkedDeque<>();
+        if (lockRequests == null) {
+            temp.addLast(lockRequest);
+            lockTable.put(key, temp);
+        } else {
+            lockRequests.add(lockRequest);
         }
         lockRequests = lockTable.get(key);
         Iterator<LockRequest> it = lockRequests.iterator();
-        boolean isExclusiveLock = it.next().mode == LockMode.EXCLUSIVE;
+        boolean isExclusiveLock = LockMode.EXCLUSIVE.equals(it.next().mode);
         if(!isLockGranted && !isExclusiveLock){
             isLockGranted = true;
             while(it.hasNext()){
-                if(it.next().mode != LockMode.SHARED){
+                if(!LockMode.SHARED.equals(it.next().mode)){
                     isLockGranted = false;
                     break;
                 }
             }
         }
-        if(!isLockGranted){
-            txn_waits.putIfAbsent(txn.getTransactionId(), 0);
-            txn_waits.merge(txn.getTransactionId(), 1, Integer::sum);
+        if(isLockGranted){
+            addLockGranted(txn.getTransactionId());
         }
 //        System.out.println("Read lock for transaction : " + txn.getTransactionId() + " Granted : " + isLockGranted + " key :" + key + " Partition :" + partitionId);
         return isLockGranted;
@@ -113,25 +149,22 @@ public class LockManager {
         }
 
         it = lockRequests.iterator();
-        boolean isShared = lockRequests.getFirst().mode == LockMode.SHARED;
+        boolean isShared = LockMode.SHARED.equals(lockRequests.getFirst().mode);
 
-        if(!isShared && lockRequests.getFirst().txn != txn){
-//            System.out.println("Transaction : " + lockRequests.getFirst().txn.getTransactionId() + "wait : " + txn_waits.get(lockRequests.getFirst().txn.getTransactionId()));
-            txn_waits.merge(lockRequests.getFirst().txn.getTransactionId(),-1,Integer::sum);
-//            System.out.println("Transaction : " + lockRequests.getFirst().txn.getTransactionId() + "wait : " + txn_waits.get(lockRequests.getFirst().txn.getTransactionId()));
-            if(txn_waits.get(lockRequests.getFirst().txn.getTransactionId()) == 0){
-                addToReadyQueue(lockRequests.getFirst().txn);
-//                System.out.println("Adding to ready queue :" + lockRequests.getFirst().txn.getTransactionId());
-            }
+        if(!isShared && !lockRequests.getFirst().txn.getTransactionId().equals(txn.getTransactionId())){
+            System.out.println("Transaction : " + lockRequests.getFirst().txn.getTransactionId() + "current wait reduced by 1 " + locksAcquired.get(lockRequests.getFirst().txn.getTransactionId()).needed );
+            initializeLockAcquired(lockRequests.getFirst().txn);
+            addLockGranted(lockRequests.getFirst().txn.getTransactionId());
+
+//            }
         }else{
             while(it.hasNext()){
                 LockRequest curr = it.next();
-                if(isShared && curr.mode == LockMode.EXCLUSIVE)
+                if(isShared &&  LockMode.EXCLUSIVE.equals(curr.mode))
                     break;
-                else if(curr.txn.getTransactionId().equals(txn.getTransactionId())){
-                    txn_waits.merge(txn.getTransactionId(),-1,Integer::sum);
-                    if( txn_waits.get(curr.txn.getTransactionId()) <= 0)
-                        addToReadyQueue(curr.txn);
+                else if(!curr.txn.getTransactionId().equals(txn.getTransactionId())){
+                    initializeLockAcquired(curr.txn);
+                    addLockGranted(curr.txn.getTransactionId());
                 }
             }
         }
@@ -143,23 +176,23 @@ public class LockManager {
 //        return txn_waits.get(txn) == null || txn_waits.get(txn) <= 0;
 //    }
 
-    synchronized public LockMode status(int key, List<Transaction> owners){
+    synchronized public boolean isLockedByMe(int key, String id){
+        List<String> owners = new ArrayList<>();
         Deque<LockRequest> lockRequests = lockTable.get(key);
-        owners.clear();
         for (LockRequest curr : lockRequests) {
             if (curr.mode == LockMode.SHARED) {
-                owners.add(curr.txn);
+                owners.add(curr.txn.getTransactionId());
             } else if (curr.mode == LockMode.EXCLUSIVE && owners.isEmpty()) {
-                owners.add(curr.txn);
-                return LockMode.EXCLUSIVE;
+                owners.add(curr.txn.getTransactionId());
+                return true;
             } else {
-                return LockMode.SHARED;
+                return true;
             }
         }
-        return owners.isEmpty() ? LockMode.UNLOCKED : LockMode.SHARED;
+        return owners.contains(id);
     }
 
-    public void addToReadyQueue(Transaction txn){
+    synchronized public void addToReadyQueue(Transaction txn){
         for(Map.Entry<Integer,ArrayBlockingQueue<Transaction>> entry : ready_txns.entrySet()) {
             try {
                 entry.getValue().put(txn);
@@ -172,7 +205,7 @@ public class LockManager {
 
     public boolean isCompleted(){
         boolean isCompleted = true;
-        for(Map.Entry<String,Integer> entry : this.txn_waits.entrySet()){
+        for(Map.Entry<String,Integer> entry : this.txnWaits.entrySet()){
             if(entry.getValue() > 0){
 //                System.out.println(entry.getKey());
                 isCompleted = false;

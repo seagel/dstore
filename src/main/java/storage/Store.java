@@ -6,7 +6,7 @@ import java.util.Collections;
 public class Store { //Array 
     ArrayList<Integer> store;
     public Store(){
-        store = new ArrayList<>(Collections.nCopies(10000, 0));
+        store = new ArrayList<>(Collections.nCopies(100, 0));
     }
     public int getSize(){
         return store.size();

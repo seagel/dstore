@@ -18,14 +18,17 @@ public class Transaction implements Serializable {
      */
     String tId;
     private static final long serialVersionUID = 4435454164550314194L;
-    Set<Integer> readSet;
-    Set<Integer> writeSet;
+    SortedSet<Integer> readSet;
+    SortedSet<Integer> writeSet;
     boolean isMultiPartition;
     int originatorPartition;
      boolean isCompleted;
-     long completionTime;
 
-    public Transaction(Set<Integer> readSet,Set<Integer> writeSet,boolean isMultiPartition){
+
+
+    long completionTime;
+
+    public Transaction(SortedSet<Integer> readSet,SortedSet<Integer> writeSet,boolean isMultiPartition){
         super();
         this.readSet = readSet;
         this.writeSet = writeSet;
@@ -113,6 +116,10 @@ public class Transaction implements Serializable {
 
     public int getOriginatorPartition() {
         return originatorPartition;
+    }
+
+    public long getCompletionTime() {
+        return completionTime;
     }
 }
 

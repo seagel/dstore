@@ -1,47 +1,64 @@
 package test.Tests;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 import constants.ConfigurableConstants;
 import model.Transaction;
+import partition.Range;
 
 public class GenerateTransactions {
 
+	ArrayList<Range> ranges;
+	public GenerateTransactions(ArrayList<Range> ranges){
+		this.ranges = ranges;
+	}
 	
 	/**
 	 * 0 - Read-only mode
 	 * 1 - Read-Write mode
 	 */
-	public static Transaction genTrans(int length, float percentageRead, float contention)
-	{
-		Set<Integer> readSet = new HashSet<>();
-		Set<Integer> writeSet = new HashSet<>();
+	public  Transaction genTrans(int length, float percentageRead, float contention,float mHRate) {
+		SortedSet<Integer> readSet = new TreeSet<>();
+		SortedSet<Integer> writeSet = new TreeSet<>();
 		
 		Random random = new Random();
-		int lengthRead = (int) (percentageRead*length/100);
-		int lengthReadWrite = (int)((1-percentageRead)*length/100);
-		for(int i=0; i< lengthRead; i++)
-		{
-			int read = (int) (Math.abs(random.nextInt()) % (100 + (1000 * (1 - contention))));
-			readSet.add(read);
+		int lengthRead = (int) (percentageRead*length);
+		int lengthReadWrite = length - lengthRead;
+		int mhRange = (int)(ranges.size() * mHRate);
+		if(contention == 1){
+			mhRange = Math.min(mhRange,3);
 		}
-			for(int i=0; i<lengthReadWrite; i++)
-			{
-				int write = (int) (Math.abs(random.nextInt()) % (1000 * (1 - contention)));
-				writeSet.add(write);
+		int count =0,i=0;
+		while(i< lengthRead) {
+			int read = random.nextInt(ranges.get(count).getEnd()- ranges.get(count).getStart()) + ranges.get(count).getStart();
+			if(!readSet.contains(read)){
+				readSet.add(read);
+				i=i+1;
+				count=count+1;
+				count=count%mhRange;
 			}
+
+		}
+		// write multi home transactions logic
+		i=0;
+		while(i<lengthReadWrite) {
+			int write = random.nextInt(ranges.get(count).getEnd()- ranges.get(count).getStart()) + ranges.get(count).getStart();
+			if(!readSet.contains(write) && !writeSet.contains(write)) {
+				writeSet.add(write);
+				i=i+1;
+				count = count + 1;
+				count = count % mhRange;
+			}
+		}
 		return new Transaction(readSet,writeSet,true);
 	}
 
-	public static List<Transaction> listoftxns(int length, float percentageRead, float contention)
-	{
+
+
+	public List<Transaction> listoftxns(int length, float percentageRead, float contention,float mHRate) {
 		List<Transaction> transactionList = new ArrayList<>();
-		for(int i=0; i<ConfigurableConstants.TRANSACTION_LENGTH; i++)
-		{
-			transactionList.add(genTrans(length,percentageRead,contention));
+		Transaction t = genTrans(length,percentageRead,contention,mHRate);
+		for(int i=0; i<ConfigurableConstants.TRANSACTION_LENGTH; i++) {
+			transactionList.add(t);
 		}
 		return transactionList;
 	}
