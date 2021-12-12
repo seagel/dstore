@@ -7,6 +7,7 @@ import storage.Store;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TxnProcessor {
     ArrayBlockingQueue<Transaction> consumer;
@@ -15,6 +16,8 @@ public class TxnProcessor {
     int partitionId;
     Range range;
     Store store;
+    AtomicInteger count ;
+
     public TxnProcessor(int partitionId, Store store, LockManager lockManager, Range range){
         consumer  = new ArrayBlockingQueue<>(1000);
         new Thread(this::process).start(); //why new thread here ?
@@ -24,6 +27,7 @@ public class TxnProcessor {
         isStopped = false;
         this.range = range;
         new Thread(this::executeProcessedTransaction).start();
+        count = new AtomicInteger(0);
 
     }
 
@@ -31,29 +35,37 @@ public class TxnProcessor {
         while(!isStopped){
             try {
                 Transaction curr = consumer.take();
-                AtomicBoolean isBlocked = new AtomicBoolean(false);
+                boolean isReady = true;
+                int requestForLocksMade = 0;
+                if (!curr.isMultiPartition() && curr.getOriginatorPartition() != partitionId) {
+                    continue;
+                }
+
                 if(!curr.getReadSet().isEmpty()){
                     for(int key :curr.getReadSet()){
-                        if(doesItBelongToMe(key) && !lockManager.readLock(curr,key)){
-                            isBlocked.set(true);
+                        if(doesItBelongToMe(key) ){
+                            requestForLocksMade++;
+                            isReady = isReady & lockManager.readLock(curr,key,partitionId);
                         }
                     }
                 }
                 if(!curr.getWriteSet().isEmpty()){
                     for(int key : curr.getWriteSet()){
-                        if(doesItBelongToMe(key) && !lockManager.writeLock(curr,key)){
-                            isBlocked.set(true);
+                        if(doesItBelongToMe(key) ){
+                            requestForLocksMade++;
+                            isReady = isReady & lockManager.writeLock(curr,key,partitionId);
                         }
                     }
                 }
-                if(!isBlocked.get()){
+                if(isReady && requestForLocksMade > 0 ){
+//                    System.out.println("Adding Transaction :" + curr.getTransactionId() + "lock request Made" + requestForLocksMade + "Partition Id : "  + partitionId) ;
+                    count.getAndIncrement();
                     lockManager.addToReadyQueue(curr);
-                }else{
-                    System.out.println("I'm Blocked " + curr);
+                    curr.markCompleted(System.nanoTime());
                 }
 
             } catch (InterruptedException e) {
-                e.printStackTrace();
+//                e.printStackTrace();
             }
 
         }
@@ -63,38 +75,41 @@ public class TxnProcessor {
     }
     public void executeProcessedTransaction()  {
         while(!isStopped) {
-            while (!lockManager.getReady_txns().isEmpty()) {
+            while (!lockManager.getReady_txns(partitionId).isEmpty()) {
                 Transaction curr = null;
                 try {
-                    curr = lockManager.getReady_txns().take();
+                    curr = lockManager.getReady_txns(partitionId).take();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+//                    e.printStackTrace();
                 }
-                System.out.println("I'm Got Access " + curr);
+//                System.out.println("I'm Got Access " + curr.getTransactionId() + "Partition :" + partitionId);
                 if (!curr.isMultiPartition() && curr.getOriginatorPartition() != partitionId) {
                     continue;
                 }
                 for (int key : curr.getWriteSet()) {
-                    store.write(key, store.read(key) + 1);
+                    if(doesItBelongToMe(key))
+                        store.write(key, store.read(key) + 1);
                 }
                 try {
                     TimeUnit.MILLISECONDS.sleep(100);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+//                    e.printStackTrace();
                 }
                 if (!curr.getReadSet().isEmpty()) {
                     for (int key : curr.getReadSet()) {
                         if(doesItBelongToMe(key))
-                            lockManager.release(curr, key);
+                            lockManager.release(curr, key,partitionId);
                     }
                 }
                 if (!curr.getWriteSet().isEmpty()) {
                     for (int key : curr.getWriteSet()) {
                         if(doesItBelongToMe(key))
-                            lockManager.release(curr, key);
+                            lockManager.release(curr, key,partitionId);
                     }
                 }
-                System.out.println("Transaction executed successfully" + curr);
+                curr.markCompleted(System.nanoTime());
+
+                System.out.println("Transaction executed successfully" + curr.getTransactionId());
             }
         }
     }
@@ -105,7 +120,11 @@ public class TxnProcessor {
     }
 
     public void processTransaction(Transaction txn){
-        consumer.add(txn);
+        try {
+            consumer.put(txn);
+        } catch (InterruptedException e) {
+//            e.printStackTrace();
+        }
     }
 
 }

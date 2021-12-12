@@ -1,21 +1,69 @@
+import constants.ConfigurableConstants;
 import partition.Initializer;
 import partition.TxnProcessor;
 import storage.LockManager;
 import storage.Store;
-import zookeeper.Executor;//package Zookeeper.executor
+import test.Tests.LoadTest;
+import zookeeper.Executor;
+
+import java.util.concurrent.TimeUnit;
+//package Zookeeper.executor
 
 public class Application {
-    public static void main(String[] args){
+    public static void main(String[] args) {
         Executor connection = new Executor("localhost");
-        int noOfPartitions = 10;
         Initializer initializer = new Initializer(connection);
         Store store = new Store();
-        initializer.initializePartitions(noOfPartitions,store);
-        LockManager lockManager = new LockManager();
+        initializer.initializePartitions(ConfigurableConstants.NUMBER_OF_PARTITIONS, store);
+        LockManager lockManager = new LockManager(initializer.getReady_txns());
         initializer.getShardMap().forEach((key, value) -> {
-            TxnProcessor processor = new TxnProcessor(key,store,lockManager,value.getRange());
+            TxnProcessor processor = new TxnProcessor(key, store, lockManager, value.getRange());
             value.setTxnProcessor(processor);
         });
-        initializer.getShardMap().forEach((key, value) -> value.pushToProduceQueue());
-    }
+
+//        // read only transactions
+//        System.out.println("Read Only Transactions - Low Contention : " );
+//        long startTime = System.nanoTime();
+//
+//        initializer.getShardMap().forEach((key, value) ->
+//            value.pushToProduceQueue(LoadTest.readOnlyLowContention()));
+//
+//        try {
+//            TimeUnit.MILLISECONDS.sleep(1000);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//
+//        while(!lockManager.isCompleted()){
+//
+//        }
+//        System.out.println("Execution Time : " + (System.nanoTime() - startTime)/10000);
+
+
+//        System.out.println("Read Only Transactions - High Contention : " );
+//        long startTime = System.nanoTime();
+//
+//        initializer.getShardMap().forEach((key, value) ->
+//                value.pushToProduceQueue(LoadTest.readOnlyHighContention()));
+//
+//        long endTime = System.nanoTime();
+//        System.out.println("Execution Time : " + (endTime - startTime)/100000);
+
+        System.out.println("Read-Write Only Transactions - Low Contention : " );
+        long startTime = System.nanoTime();
+        System.out.println("Start Time :  " +  startTime);
+        initializer.getShardMap().forEach((key, value) ->
+                value.pushToProduceQueue(LoadTest.readWriteOnlyLowContention()));
+        try {
+            TimeUnit.MILLISECONDS.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        while(!lockManager.isCompleted()){
+
+        }
+        System.out.println("Time Taken for Execution : " + (System.nanoTime() - startTime )/10000);
+
+}
 }

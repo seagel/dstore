@@ -20,7 +20,7 @@ public class Executor {
             if(zooKeeper.exists("/services",false) == null)// connection string 
                 zooKeeper.create("/services" ,null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } catch (IOException | KeeperException | InterruptedException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
         }
 
     }

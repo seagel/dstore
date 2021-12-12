@@ -1,23 +1,26 @@
 package partition;
 
+import model.Transaction;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.zookeeper.*;
 import storage.Store;
 import zookeeper.Executor;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 //Initializer = {shardMap, executor}
 
 public class Initializer {
 
     Map<Integer,Partition> shardMap;
     Executor executor;
-    
+    Map<Partition,Boolean> completionMap;
+    Map<Integer, ArrayBlockingQueue<Transaction>> ready_txns;
     public Initializer(Executor zk){//setter method
         this.executor = zk;
         shardMap = new HashMap<>();
+        completionMap = new HashMap<>();
+        ready_txns = new HashMap<>();
     }
     
     public Executor getExecutor() {
@@ -43,10 +46,10 @@ public class Initializer {
 
     public void printTransactions(){
         try {
-            List<String> transactions = executor.getZooKeeper().getChildren("/sequencer",false);
+            List<String> transactions = executor.getZooKeeper().getChildren("/orderer",false);
             transactions.forEach(System.out::println);
         } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
         }
 
     }
@@ -58,6 +61,8 @@ public class Initializer {
         try {
             byte[] input = SerializationUtils.serialize(range);
             shardMap.put(no,partition);
+            completionMap.put(partition,false);
+            ready_txns.put(no, new ArrayBlockingQueue<>(1000));
             executor.getZooKeeper().create("/services/active" + partition.getId(),input, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
             executor.getZooKeeper().addWatch("/services/active" + partition.getId(), watchedEvent -> {
                 if(watchedEvent.getType() == Watcher.Event.EventType.NodeDeleted){
@@ -69,7 +74,23 @@ public class Initializer {
             }, AddWatchMode.PERSISTENT);
             partition.start();
         } catch (KeeperException | InterruptedException e) {
+//            e.printStackTrace();
+        }
+    }
+
+    public void markCompleted(int key){
+        completionMap.put(shardMap.get(key),true);
+    }
+
+    public void purgeCompletedTransactions() {
+        try {
+            executor.getZooKeeper().delete("/orderer",-1);
+        } catch (InterruptedException | KeeperException e) {
             e.printStackTrace();
         }
+    }
+
+    public Map<Integer, ArrayBlockingQueue<Transaction>> getReady_txns() {
+        return ready_txns;
     }
 }

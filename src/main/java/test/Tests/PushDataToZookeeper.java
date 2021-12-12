@@ -1,4 +1,4 @@
-package Tests;
+package test.Tests;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,9 +26,9 @@ public class PushDataToZookeeper extends Thread {
         Transaction txn = null ;//= getTransaction();
         while (true) {
             try {
-                zooKeeper.create("/sequencer/T",getByteArray(txn) , ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
+                zooKeeper.create("/orderer/T",getByteArray(txn) , ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
             } catch (InterruptedException | KeeperException | IOException e) {
-                e.printStackTrace();
+//                e.printStackTrace();
             }
         }
     }

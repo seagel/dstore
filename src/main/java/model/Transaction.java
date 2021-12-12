@@ -22,6 +22,8 @@ public class Transaction implements Serializable {
     Set<Integer> writeSet;
     boolean isMultiPartition;
     int originatorPartition;
+     boolean isCompleted;
+     long completionTime;
 
     public Transaction(Set<Integer> readSet,Set<Integer> writeSet,boolean isMultiPartition){
         super();
@@ -29,6 +31,7 @@ public class Transaction implements Serializable {
         this.writeSet = writeSet;
         this.isMultiPartition = isMultiPartition;
         this.originatorPartition = new Random().nextInt(10);
+        isCompleted = false;
     }
 
     /// Read only transaction - SP/ MP
@@ -100,6 +103,13 @@ public class Transaction implements Serializable {
 //        inputArchive.endRecord(s);
 //    }
 
+    public void markCompleted(long timestamp){
+        this.completionTime = timestamp;
+        this.isCompleted  = true;
+    }
+    public boolean isCompleted(){
+        return isCompleted;
+    }
 
     public int getOriginatorPartition() {
         return originatorPartition;
