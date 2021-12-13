@@ -1,11 +1,9 @@
 package partition;
 
+import jdk.jfr.EventType;
 import model.Transaction;
 
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.*;
 
 import constants.ConfigurableConstants;
 
@@ -21,18 +19,15 @@ public class Partition extends Thread { //partition analogous to thread
     Range range;
     Initializer initializer;
     ArrayBlockingQueue<Transaction> processingQueue;
-    Range read_set;
-
+    Map <String,Boolean> readTransactions;
     TxnProcessor txnProcessor;
-    long offset;
 
     public Partition(int id, Initializer initializer, Range range) {
         this.id = id;
         this.range = range;
         this.initializer = initializer;
         processingQueue = new ArrayBlockingQueue<>(ConfigurableConstants.PROCESSING_QUEUE_SIZE);
-        offset = 0;
-        this.read_set = new Range(-1, -1);
+        this.readTransactions = new HashMap<>();
     }
 
     public Range getRange() {
@@ -91,36 +86,25 @@ public class Partition extends Thread { //partition analogous to thread
         List<String> children;
         while (true) {
             try {
-                this.itr = 0;
+
                 children = zooKeeper.getChildren("/orderer", false);
                 Collections.sort(children);
-                this.read_set.start = this.read_set.end + 1;
-                int s_index = this.read_set.end + 1, e_index;
-                e_index = Math.min(children.size(), this.read_set.start + ConfigurableConstants.ZOOKEEPER_BATCH_READ_SIZE);
-                if (s_index <= e_index) {
-                    children.subList(s_index, e_index).forEach(x -> {
-                        this.itr++;
-                        this.read_set.end = this.read_set.start + this.itr;
-//                        System.out.println("index read = " + this.read_set.end);
-
-                        //children.stream().limit(10).forEach(x -> {
+//                    System.out.println(s_index + "....." + e_index);
+                    children.stream().filter(x -> !readTransactions.containsKey(x)).forEach(x -> {
                         try {
-//                            System.out.println("Transaction  " + x);
                             Transaction curr = (Transaction) getObject(zooKeeper.getData("/orderer/" + x, false, zooKeeper.exists("/orderer/" + x, false)));
                             curr.settId(x);
-//                        curr.print();
+//                            System.out.println("Adding :" + curr.getTransactionId());
+                            readTransactions.put(x,true);
                             txnProcessor.processTransaction(curr);
                         } catch (KeeperException | InterruptedException | IOException | ClassNotFoundException e) {
-//                            e.printStackTrace();
+                            e.printStackTrace();
                         }
 //                    System.out.println("Partition id : " + this.getId() + " ...." + x);
                     });
-                }
-                //printing the order of the transactions in every thread
-            } catch (KeeperException | InterruptedException e) {
+                }catch (KeeperException | InterruptedException e) {
 //                e.printStackTrace();
             }
-//            break;
         }
     }
 
@@ -156,6 +140,16 @@ public class Partition extends Thread { //partition analogous to thread
         ObjectInput in = new ObjectInputStream(bis);
         return in.readObject();
     }
+
+    public void setStartTimestamp(long startTimestamp){
+        txnProcessor.setStartTimestamp(startTimestamp);
+    }
+
+
+    public void setTotalTxns(long count){
+        txnProcessor.setTotalTransactions(count);
+    }
+
 
 
 }

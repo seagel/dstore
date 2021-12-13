@@ -28,12 +28,12 @@ public class Transaction implements Serializable {
 
     long completionTime;
 
-    public Transaction(SortedSet<Integer> readSet,SortedSet<Integer> writeSet,boolean isMultiPartition){
+    public Transaction(SortedSet<Integer> readSet,SortedSet<Integer> writeSet,boolean isMultiPartition,int originatorPartition){
         super();
         this.readSet = readSet;
         this.writeSet = writeSet;
         this.isMultiPartition = isMultiPartition;
-        this.originatorPartition = new Random().nextInt(10);
+        this.originatorPartition = originatorPartition;
         isCompleted = false;
     }
 

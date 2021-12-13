@@ -1,4 +1,5 @@
 import constants.ConfigurableConstants;
+import model.Transaction;
 import partition.Initializer;
 import partition.Range;
 import partition.TxnProcessor;
@@ -8,6 +9,7 @@ import test.Tests.LoadTest;
 import zookeeper.Executor;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 //package Zookeeper.executor
 
@@ -56,18 +58,18 @@ public class Application {
         long startTime = System.nanoTime();
         LoadTest loadTest = new LoadTest(ranges);
         System.out.println("Start Time :  " +  startTime);
-        initializer.getShardMap().forEach((key, value) ->
-                value.pushToProduceQueue(loadTest.test1()));
-        try {
-            TimeUnit.MILLISECONDS.sleep(10000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        List<Transaction> txnList =loadTest.test1();
+        initializer.getShardMap().forEach((key, value) ->{
+                    value.pushToProduceQueue(txnList);
+                    value.setStartTimestamp(startTime);
+                    value.setTotalTxns(ConfigurableConstants.TRANSACTION_LENGTH * ConfigurableConstants.NUMBER_OF_PARTITIONS);
+                });
+        while(!initializer.isExecutionCompleted()){
+            try {
+                TimeUnit.MILLISECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
-
-//        while(!lockManager.isCompleted()){
-//
-//        }
-//        System.out.println("Time Taken for Execution : " + (System.nanoTime() - startTime )/10000);
-
 }
 }

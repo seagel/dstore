@@ -21,7 +21,7 @@ public class LoadTest {
     }
 
     public  List<Transaction> test1() {
-        return generateTransactions.listoftxns(10, 0.8f, 1,1);
+        return generateTransactions.listoftxns(30, 0.8f, 1,1);
     }
 
     public  List<Transaction> test2() {
@@ -36,5 +36,13 @@ public class LoadTest {
         return generateTransactions.listoftxns(30, 0.6f, 0,1);
     }
 
+    public  List<Transaction> test5() {
+        return generateTransactions.listoftxns(30, 0.8f, 1,0.1f);
+    }
 
+
+    public List<Transaction> test6(int home) {
+        return generateTransactions.listSHTxns(30, 0.8f, 1,home);
+
+    }
 }

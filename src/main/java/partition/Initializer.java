@@ -8,6 +8,7 @@ import zookeeper.Executor;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 //Initializer = {shardMap, executor}
 
 public class Initializer {
@@ -20,7 +21,7 @@ public class Initializer {
         this.executor = zk;
         shardMap = new HashMap<>();
         completionMap = new HashMap<>();
-        ready_txns = new HashMap<>();
+        ready_txns = new ConcurrentHashMap<>();
     }
     
     public Executor getExecutor() {
@@ -54,6 +55,10 @@ public class Initializer {
 
     }
 
+    public boolean isExecutionCompleted(){
+        return false;
+    }
+
 
 
     public void addNewPartition(int no,Range range) {
@@ -77,10 +82,10 @@ public class Initializer {
 //            e.printStackTrace();
         }
     }
-
-    public void markCompleted(int key){
-        completionMap.put(shardMap.get(key),true);
-    }
+//
+//    public void markCompleted(int key){
+//        completionMap.put(shardMap.get(key),true);
+//    }
 
     public void purgeCompletedTransactions() {
         try {
